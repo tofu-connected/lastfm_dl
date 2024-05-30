@@ -10,7 +10,7 @@ import pylast
 import requests
 import re
 from pytube import YouTube
-from mutagen.id3 import ID3, APIC, TIT2, TPE1
+from mutagen.id3 import ID3, APIC, TIT2, TPE1, COMM
 from mutagen.mp3 import MP3
 from io import BytesIO
 from PIL import Image
@@ -36,11 +36,12 @@ def search_youtube_link(search_query):
     return None
 
 
-def write_mp3_tags(filename, artist_name, track_name, thumbnail_data):
+def write_mp3_tags(filename, artist_name, track_name, comment, thumbnail_data):
     audio = MP3(filename, ID3=ID3)
 
     audio.tags.add(TPE1(encoding=3, text=[artist_name]))
     audio.tags.add(TIT2(encoding=3, text=[track_name]))
+    audio.tags.add(COMM(encoding=3, text=[comment]))
 
     thumbnail = Image.open(thumbnail_data)
     thumbnail = thumbnail.resize(
@@ -58,7 +59,7 @@ def is_processed(artist_name: str, track_name: str):
         if file.endswith(".mp3"):
             mp3 = MP3(f"{DL_DIR}\\{file}", ID3=ID3)
             if "TPE1" in mp3.tags and mp3.tags["TPE1"].text[0] == artist_name and "TIT2" in mp3.tags and mp3.tags["TIT2"][0] == track_name:
-               return True 
+                return True 
     return False
 
 
@@ -86,7 +87,7 @@ def main():
         if is_processed(artist_name, track_name):
             print(f"⏩ {progress} Skipped: {artist_name} - {track_name}")
             continue
-
+        
         search_query = f"{track_name} {artist_name}"
 
         youtube_link = search_youtube_link(search_query)
@@ -135,8 +136,13 @@ def main():
             thumbnail_data = requests.get(yt.thumbnail_url, stream=True)
             thumbnail_data.raw.decode_content = True
 
-            write_mp3_tags(filename_mp3, artist_name,
-                           track_name, thumbnail_data.raw)
+            write_mp3_tags(
+                filename=filename_mp3, 
+                artist_name=artist_name,
+                track_name=track_name, 
+                comment=video_title,
+                thumbnail_data=thumbnail_data.raw
+            )
         else:
             print(f"❌ {progress} No YouTube video found for '{artist_name} - {track_name}'")
 
